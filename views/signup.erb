@@ -9,21 +9,23 @@
       window.console = {log: function() { }, error: function() { }};
     }
     
+    var params = <%= @params_json %>;
+    
     var ws;
     
     $(function() {
       console.log("loaded");
       
-      var cookies = document.cookie.split(/\s*;\s*/);
-      var cookiesMap = {};
-      for (var i = 0; i < cookies.length; ++i) {
-        var fields = cookies[i].split(/=/);
-        cookiesMap[fields[0]] = decodeURIComponent(fields[1]);
-      }
-      console.log(cookiesMap);
-      var browserKey = cookiesMap.touchauthBrowserKey;
+      var browserKey = Math.random().toString();
+      var expireDate = new Date();
+      expireDate.setTime(new Date().getTime() + 5 * 365 * 24 * 3600 * 1000);
+      document.cookie = "touchauthBrowserKey=" + encodeURIComponent(browserKey) +
+          ";expires=" + expireDate.toUTCString();
+      var chartUrl = "http://chart.apis.google.com/chart?chs=150x150&cht=qr&chl=" +
+          encodeURIComponent(params.user + ":" + browserKey);
+      $("#qr").attr("src", chartUrl);
       
-      ws = new WebSocket("ws://sakura.gimite.net:19002/auth/" + browserKey);
+      ws = new WebSocket("ws://sakura.gimite.net:19002/");
       ws.onopen = function() {
         console.log("onopen");
       };
@@ -42,6 +44,6 @@
   </script>
 </head><body>
 
-Touch your phone.
+<img id="qr">
 
 </body></html>
