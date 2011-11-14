@@ -9,53 +9,92 @@ require "sinatra/reloader"
 require "em-websocket"
 require "json"
 require "kyotocabinet"
+require "securerandom"
+require "digest/sha1"
+require "erb"
 
 
 class TouchauthWebServer < Sinatra::Base
+    
+    include(ERB::Util)
+    
+    SESSION_SECRET_PATH = "config/session_secret"
     
     def self.web_socket_server=(serv)
       @@web_socket_server = serv
     end
     
     set(:port, 19001)
+    
+    if !File.exist?(SESSION_SECRET_PATH)
+      open(SESSION_SECRET_PATH, "w"){ |f| f.write(SecureRandom.base64()) }
+    end
+    SESSION_SECRET = File.read(SESSION_SECRET_PATH)
+
+    configure(:development) do
+      #register(Sinatra::Reloader)
+    end
 
     get("/") do
+      @browser_key = request.cookies["touchauth_browser_key"]
+      session = request.cookies["touchauth_session"]
+      @user = nil
+      if session
+        (user_id, timestamp, digest) = session.split(/:/)
+        if digest == Digest::SHA1.hexdigest([user_id, timestamp, SESSION_SECRET].join(":"))
+          @user = Store.get(User.new(user_id))
+        end
+      end
       return erb(:index)
     end
 
-    configure(:development) do
-      register(Sinatra::Reloader)
+    post("/login") do
+      browser_key = request.cookies["touchauth_browser_key"]
+      browser = browser_key && Store.get(Browser.new(browser_key))
+      if browser
+        user = Store.get(User.new(browser.user_id))
+        p user
+        notification = {
+          :registration_id => user.registration_id,
+          :data => {:browser_key => browser_key},
+        }
+        p [:note, notification]
+        c2dm = C2DM.from_auth_token(File.read("config/google_auth_token"))
+        c2dm.send_notification(notification)
+      end
+      @params_json = JSON.dump({"browserKey" => browser && browser.browser_key})
+      return erb(:login)
+    end
+    
+    get("/qr_login") do
+      return erb(:qr_login)
     end
 
     post("/auth") do
-      browser_key = request.cookies["touchauthBrowserKey"]
-      browser = Store.get(Browser.new(browser_key))
-      return "Browser not registered" if !browser
-      user = Store.get(User.new(browser.user_id))
-      p user
-      notification = {
-        :registration_id => user.registration_id,
-        :data => {:browser_key => browser_key},
-      }
-      p [:note, notification]
-      c2dm = C2DM.from_auth_token(File.read("config/google_auth_token"))
-      c2dm.send_notification(notification)
-      return erb(:auth)
-    end
-
-    post("/touchauth") do
       user = Store.get(User.new(params[:user]))
-      browser = Store.get(Browser.new(params[:browser_key]))
       if !user || user.mobile_key != params[:mobile_key]
         p "mobile_key mismatch"
         return "bad"
-      elsif !browser || browser.user_id != user.id
-        p "browser_key mismatch"
-        return "bad"
-      else
-        @@web_socket_server.notify("/auth/%s" % params[:browser_key])
-        return "ok"
       end
+      case params[:type]
+        when "touch"
+          browser = Store.get(Browser.new(params[:browser_key]))
+          if !browser || browser.user_id != user.id
+            p "browser_key mismatch"
+            return "bad"
+          end
+        when "qr"
+          Store.put(Browser.new(params[:browser_key], params[:user]))
+        else
+          return "unknown type"
+      end
+      timestamp = Time.now.to_i()
+      digest = Digest::SHA1.hexdigest([params[:user], timestamp, SESSION_SECRET].join(":"))
+      session = [params[:user], timestamp, digest].join(":")
+      @@web_socket_server.send(
+          "/auth/%s" % params[:browser_key],
+          {"status" => "success", "session" => session})
+      return "ok"
     end
     
     get("/authenticated") do
@@ -88,7 +127,7 @@ class TouchauthWebServer < Sinatra::Base
     end
     
     get("/test2") do
-      @@web_socket_server.notify()
+      @@web_socket_server.send()
       return "ok"
     end
     
@@ -118,10 +157,10 @@ class TouchauthWebSocketServer
       end
     end
     
-    def notify(path)
+    def send(path, message)
       ws = @sockets[path]
-      p [:notify, ws ? true : false]
-      ws.send("auth") if ws
+      p [:send, ws ? true : false]
+      ws.send(JSON.dump(message)) if ws
     end
     
     def on_web_socket_open(ws)

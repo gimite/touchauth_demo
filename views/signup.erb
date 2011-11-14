@@ -19,7 +19,7 @@
       var browserKey = Math.random().toString();
       var expireDate = new Date();
       expireDate.setTime(new Date().getTime() + 5 * 365 * 24 * 3600 * 1000);
-      document.cookie = "touchauthBrowserKey=" + encodeURIComponent(browserKey) +
+      document.cookie = "touchauth_browser_key=" + encodeURIComponent(browserKey) +
           ";expires=" + expireDate.toUTCString();
       var chartUrl = "http://chart.apis.google.com/chart?chs=150x150&cht=qr&chl=" +
           encodeURIComponent(params.user + ":" + browserKey);

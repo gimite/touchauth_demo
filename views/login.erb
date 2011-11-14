@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8"> 
+  <title>Test</title>
+  <script src="http://gimite.net/js/jquery-1.3.2.min.js"></script>
+  <script>
+    
+    if (!window.console) {
+      window.console = {log: function() { }, error: function() { }};
+    }
+    
+    var params = <%= @params_json %>;
+    
+    var ws;
+    
+    $(function() {
+      console.log("loaded");
+      
+      /*
+      var cookies = document.cookie.split(/\s*;\s*);
+      var cookiesMap = {};
+      for (var i = 0; i < cookies.length; ++i) {
+        var fields = cookies[i].split(/=/);
+        cookiesMap[fields[0]] = decodeURIComponent(fields[1]);
+      }
+      console.log(cookiesMap);
+      var browserKey = cookiesMap["touchauth_browser_key"];
+      */
+      
+      var browserKey = params.browserKey;
+      if (browserKey) {
+        $("#touch-container").show();
+      } else {
+        browserKey = Math.random().toString();
+        var expireDate = new Date();
+        expireDate.setTime(new Date().getTime() + 5 * 365 * 24 * 3600 * 1000);
+        document.cookie = "touchauth_browser_key=" + encodeURIComponent(browserKey) +
+            ";expires=" + expireDate.toUTCString();
+        var chartUrl = "http://chart.apis.google.com/chart?chs=150x150&cht=qr&chl=" +
+            encodeURIComponent("touchauth:login:" + browserKey);
+        $("#qr").attr("src", chartUrl);
+        $("#qr-container").show();
+      }
+      
+      ws = new WebSocket("ws://sakura.gimite.net:19002/auth/" + browserKey);
+      ws.onopen = function() {
+        console.log("onopen");
+      };
+      ws.onmessage = function(e) {
+        console.log("onmessage: " + e.data);
+        var res = JSON.parse(e.data);
+        if (res.status == "success") {
+          document.cookie = "touchauth_session=" + encodeURIComponent(res.session);
+          location.href = "http://sakura.gimite.net:19001/";
+        }
+      };
+      ws.onclose = function() {
+        console.log("onclose");
+      };
+      ws.onerror = function() {
+        console.log("onerror");
+      };
+    });
+    
+    function clearBrowserKey() {
+      document.cookie = "touchauth_browser_key=;expires=Mon, 14 Nov 2011 00:00:00 GMT";
+    }
+    
+  </script>
+</head><body>
+
+<div id="touch-container" style="display: none;">
+  Touch your phone.
+</div>
+
+<div id="qr-container" style="display: none;">
+  <img id="qr"/>
+</div>
+
+</body></html>
