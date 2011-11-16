@@ -12,6 +12,7 @@ require "kyotocabinet"
 require "securerandom"
 require "digest/sha1"
 require "erb"
+require "ripl"
 
 
 class TouchauthWebServer < Sinatra::Base
@@ -73,31 +74,40 @@ class TouchauthWebServer < Sinatra::Base
     end
     
     post("/auth") do
-      user = Store.get(User.new(params[:user]))
-      if !user || user.mobile_key != params[:mobile_key]
-        p "mobile_key mismatch"
-        return "bad"
+      result = catch(:result) do
+        user = Store.get(User.new(params[:user]))
+        if !user || user.mobile_key != params[:mobile_key]
+          p "mobile_key mismatch"
+          throw(:result, {"status" => "bad_key"})
+        end
+        # Needed for QR code authentication.
+        Store.put(Browser.new(params[:browser_key], params[:user]))
+        timestamp = Time.now.to_i()
+        digest = Digest::SHA1.hexdigest([params[:user], timestamp, SESSION_SECRET].join(":"))
+        session = [params[:user], timestamp, digest].join(":")
+        @@web_socket_server.send(
+            "/auth/%s" % params[:browser_key],
+            {"status" => "success", "session" => session})
+        throw(:result, {"status" => "success"})
       end
-      case params[:type]
-        when "touch"
-          browser = Store.get(Browser.new(params[:browser_key]))
-          if !browser || browser.user_id != user.id
-            p "browser_key mismatch"
-            return "bad"
-          end
-        when "qr"
-          Store.put(Browser.new(params[:browser_key], params[:user]))
-        else
-          return "unknown type"
-      end
-      timestamp = Time.now.to_i()
-      digest = Digest::SHA1.hexdigest([params[:user], timestamp, SESSION_SECRET].join(":"))
-      session = [params[:user], timestamp, digest].join(":")
-      @@web_socket_server.send(
-          "/auth/%s" % params[:browser_key],
-          {"status" => "success", "session" => session})
       content_type("text/javascript", :charset => "utf-8")
-      return JSON.dump({"status" => "success"})
+      return JSON.dump(result)
+    end
+    
+    post("/connected") do
+      result = catch(:result) do
+        user = Store.get(User.new(params[:user]))
+        if !user || user.mobile_key != params[:mobile_key]
+          p "mobile_key mismatch"
+          throw(:result, {"status" => "bad_key"})
+        end
+        @@web_socket_server.send(
+            "/auth/%s" % params[:browser_key],
+            {"status" => "connected"})
+        throw(:result, {"status" => "success"})
+      end
+      content_type("text/javascript", :charset => "utf-8")
+      return JSON.dump(result)
     end
     
     post("/expire_session") do
@@ -109,9 +119,12 @@ class TouchauthWebServer < Sinatra::Base
       content_type("text/javascript", :charset => "utf-8")
       p [:signup, params[:user], params[:mobile_key], params[:registration_id]]
       if valid_user?(params[:user])
-        # TODO dup check
-        Store.put(User.new(params[:user], params[:mobile_key], params[:registration_id]))
-        result = {"status" => "success"}
+        user = User.new(params[:user], params[:mobile_key], params[:registration_id])
+        if Store.put(user, :no_overwrite => true)
+          result = {"status" => "success"}
+        else
+          result = {"status" => "used_id"}
+        end
       else
         result = {"status" => "invalid_id"}
       end
@@ -211,24 +224,31 @@ end
 class Store
     
     def self.open()
-      @db = KyotoCabinet::DB.new()
-      check(@db.open("db/casket.kch", KyotoCabinet::DB::OWRITER | KyotoCabinet::DB::OCREATE))
+      @db = KyotoCabinet::DB.new(KyotoCabinet::DB::GEXCEPTIONAL)
+      @db.open("db/casket.kch", KyotoCabinet::DB::OWRITER | KyotoCabinet::DB::OCREATE)
     end
     
     def self.get(entry)
-      value = @db[key(entry)]
+      value = @db[get_key(entry)]
       return value ? Marshal.load(value) : nil
     end
     
-    def self.put(entry)
-      @db[key(entry)] = Marshal.dump(entry)
+    def self.put(entry, opts = {})
+      key = get_key(entry)
+      value = Marshal.dump(entry)
+      if opts[:no_overwrite]
+        return @db.cas(key, nil, value)
+      else
+        @db[key] = value
+        return true
+      end
     end
     
     def self.remove(entry)
-      @db.remove(key(entry))
+      @db.remove(get_key(entry))
     end
     
-    def self.key(entry)
+    def self.get_key(entry)
       return Marshal.dump([entry.class.name, entry.key])
     end
     
@@ -238,8 +258,9 @@ class Store
       end
     end
     
-    def self.check(result)
-      raise("DB error: %s" % @db.error) if !result
+    # for debug
+    def self.db
+      return @db
     end
     
     open()
@@ -296,6 +317,8 @@ case ARGV[0]
     p Store.get(User.new("gimite"))
   when "dump_store"
     Store.dump()
+  when "console"
+    Ripl.start({:binding => binding})
   else
     raise("unknown action")
 end

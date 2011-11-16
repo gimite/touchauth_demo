@@ -52,6 +52,8 @@
         if (res.status == "success") {
           document.cookie = "touchauth_session=" + encodeURIComponent(res.session);
           location.href = "http://sakura.gimite.net:19001/";
+        } else if (res.status == "connected") {
+          $("#touch-message").text("Touch [Log in] button on your phone.");
         }
       };
       ws.onclose = function() {
@@ -70,7 +72,7 @@
 </head><body>
 
 <div id="touch-container" style="display: none;">
-  Touch your phone.
+  <div id="touch-message">Connecting to your phone...</div>
 </div>
 
 <div id="qr-container" style="display: none;">
