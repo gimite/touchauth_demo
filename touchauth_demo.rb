@@ -25,6 +25,7 @@ class TouchauthWebServer < Sinatra::Base
     end
     
     set(:port, 19001)
+    set(:logging, true)
     
     if !File.exist?(SESSION_SECRET_PATH)
       open(SESSION_SECRET_PATH, "w"){ |f| f.write(SecureRandom.base64()) }
@@ -36,7 +37,8 @@ class TouchauthWebServer < Sinatra::Base
     end
 
     get("/") do
-      @browser_key = request.cookies["touchauth_browser_key"]
+      browser_key = request.cookies["touchauth_browser_key"]
+      @browser = browser_key && Store.get(Browser.new(browser_key))
       session = request.cookies["touchauth_session"]
       @user = nil
       if session
@@ -50,7 +52,11 @@ class TouchauthWebServer < Sinatra::Base
 
     post("/login") do
       browser_key = request.cookies["touchauth_browser_key"]
-      browser = browser_key && Store.get(Browser.new(browser_key))
+      if params[:type] == "qr"
+        browser = nil
+      else
+        browser = browser_key && Store.get(Browser.new(browser_key))
+      end
       if browser
         user = Store.get(User.new(browser.user_id))
         p user
@@ -66,10 +72,6 @@ class TouchauthWebServer < Sinatra::Base
       return erb(:login)
     end
     
-    get("/qr_login") do
-      return erb(:qr_login)
-    end
-
     post("/auth") do
       user = Store.get(User.new(params[:user]))
       if !user || user.mobile_key != params[:mobile_key]
@@ -94,32 +96,27 @@ class TouchauthWebServer < Sinatra::Base
       @@web_socket_server.send(
           "/auth/%s" % params[:browser_key],
           {"status" => "success", "session" => session})
-      return "ok"
+      content_type("text/javascript", :charset => "utf-8")
+      return JSON.dump({"status" => "success"})
     end
     
-    get("/authenticated") do
-      return "Authenticated! <a href='/'>Log out</a>"
+    post("/expire_session") do
+      response.set_cookie("touchauth_session", :expires => Time.at(0))
+      return redirect("/")
     end
     
     post("/signup") do
-      @params_json = JSON.dump({"user" => params[:user]})
-      if valid_user?(params[:user])
-        return erb(:signup)
-      else
-        return "Invalid user ID. Only alphabet/numbers are allowed."
-      end
-    end
-    
-    post("/mobile_signup") do
-      p [:signup, params[:user], params[:mobile_key], params[:browser_key], params[:registration_id]]
+      content_type("text/javascript", :charset => "utf-8")
+      p [:signup, params[:user], params[:mobile_key], params[:registration_id]]
       if valid_user?(params[:user])
         # TODO dup check
         Store.put(User.new(params[:user], params[:mobile_key], params[:registration_id]))
-        Store.put(Browser.new(params[:browser_key], params[:user]))
-        return "ok"
+        result = {"status" => "success"}
       else
-        return "Invalid user ID. Only alphabet/numbers are allowed."
+        result = {"status" => "invalid_id"}
       end
+      content_type("text/javascript", :charset => "utf-8")
+      return JSON.dump(result)
     end
     
     get("/test1") do

@@ -13,22 +13,29 @@
 </head><body>
 
 <% if @user %>
+  
   <div>Hello <%=h @user.id %>!</div>
+  
+  <form action="/expire_session" method="POST">
+    <input type="submit" value="Log out"/>
+  </form>
+
+<% elsif @browser %>
+  
+  <form action="/login" method="POST">
+    <input type="submit" value="Log in as <%=h @browser.user_id %>"/>
+  </form>
+  <form action="/login" method="POST">
+    <input type="hidden" name="type" value="qr"/>
+    <input type="submit" value="Log in as someone else"/>
+  </form>
+  
+<% else %>
+  
+  <form action="/login" method="POST">
+    <input type="submit" value="Log in"/>
+  </form>
+  
 <% end %>
-
-<form action="/login" method="POST">
-  <input type="submit" value="Log in">
-</form>
-
-<!--
-<form action="/qr_login" method="GET">
-  <input type="submit" value="Log in (QR)">
-</form>
--->
-
-<form action="/signup" method="POST">
-  <input type="text" name="user" placeholder="User ID">
-  <input type="submit" value="Sign up">
-</form>
 
 </body></html>
