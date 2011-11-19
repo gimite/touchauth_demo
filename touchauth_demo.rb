@@ -13,6 +13,8 @@ require "securerandom"
 require "digest/sha1"
 require "erb"
 require "ripl"
+require "daemons"
+require "fileutils"
 
 
 class TouchauthWebServer < Sinatra::Base
@@ -58,19 +60,27 @@ class TouchauthWebServer < Sinatra::Base
       else
         browser = browser_key && Store.get(Browser.new(browser_key))
       end
+      @params_json = JSON.dump({"browserKey" => browser && browser.browser_key})
+      return erb(:login)
+    end
+    
+    post("/call_mobile") do
+      browser_key = request.cookies["touchauth_browser_key"]
+      browser = browser_key && Store.get(Browser.new(browser_key))
       if browser
         user = Store.get(User.new(browser.user_id))
-        p user
         notification = {
           :registration_id => user.registration_id,
           :data => {:browser_key => browser_key},
         }
-        p [:note, notification]
         c2dm = C2DM.from_auth_token(File.read("config/google_auth_token"))
         c2dm.send_notification(notification)
+        result = {"status" => "success"}
+      else
+        result = {"status" => "invalid_browser_key"}
       end
-      @params_json = JSON.dump({"browserKey" => browser && browser.browser_key})
-      return erb(:login)
+      content_type("text/javascript", :charset => "utf-8")
+      return JSON.dump(result)
     end
     
     post("/auth") do
@@ -117,7 +127,7 @@ class TouchauthWebServer < Sinatra::Base
     
     post("/signup") do
       content_type("text/javascript", :charset => "utf-8")
-      p [:signup, params[:user], params[:mobile_key], params[:registration_id]]
+      #p [:signup, params[:user], params[:mobile_key], params[:registration_id]]
       if valid_user?(params[:user])
         user = User.new(params[:user], params[:mobile_key], params[:registration_id])
         if Store.put(user, :no_overwrite => true)
@@ -300,7 +310,7 @@ class Browser
 end
 
 
-case ARGV[0]
+case ARGV.shift()
   when "auth"
     password = HighLine.new().ask("Password: "){ |q| q.echo = false }
     c2dm = C2DM.authenticate("gimite@gmail.com", password)
@@ -308,10 +318,21 @@ case ARGV[0]
       f.write(c2dm.auth_token)
     end
   when "server"
-    wsserv = TouchauthWebSocketServer.new()
-    wsserv.schedule()
-    TouchauthWebServer.web_socket_server = wsserv
-    TouchauthWebServer.run!()
+    FileUtils.mkdir_p("log")
+    root_dir = File.dirname(File.expand_path(__FILE__))
+    opts = {
+      :log_output => true,
+      :dir_mode => :normal,
+      :dir => "log",
+      :monitor => true,
+    }
+    Daemons.run_proc("touchauth_demo", opts) do
+      FileUtils.cd(root_dir)
+      wsserv = TouchauthWebSocketServer.new()
+      wsserv.schedule()
+      TouchauthWebServer.web_socket_server = wsserv
+      TouchauthWebServer.run!()
+    end
   when "test"
     Store.put(User.new("gimite", "hoge"))
     p Store.get(User.new("gimite"))

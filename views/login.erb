@@ -3,11 +3,15 @@
   <meta charset="utf-8"> 
   <title>Test</title>
   <script src="http://gimite.net/js/jquery-1.3.2.min.js"></script>
+  <script type="text/javascript" src="/js/swfobject.js"></script>
+  <script type="text/javascript" src="/js/web_socket.js"></script>
   <script>
     
     if (!window.console) {
       window.console = {log: function() { }, error: function() { }};
     }
+    
+    WEB_SOCKET_SWF_LOCATION = "/js/WebSocketMain.swf";
     
     var params = <%= @params_json %>;
     
@@ -16,16 +20,10 @@
     $(function() {
       console.log("loaded");
       
-      /*
-      var cookies = document.cookie.split(/\s*;\s*);
-      var cookiesMap = {};
-      for (var i = 0; i < cookies.length; ++i) {
-        var fields = cookies[i].split(/=/);
-        cookiesMap[fields[0]] = decodeURIComponent(fields[1]);
+      if (!window.WebSocket) {
+        alert("Flash Player 10 or later is required.");
+        return;
       }
-      console.log(cookiesMap);
-      var browserKey = cookiesMap["touchauth_browser_key"];
-      */
       
       var browserKey = params.browserKey;
       if (browserKey) {
@@ -45,6 +43,17 @@
       ws = new WebSocket("ws://sakura.gimite.net:19002/auth/" + browserKey);
       ws.onopen = function() {
         console.log("onopen");
+        $.ajax({
+          type: "POST",
+          url: "/call_mobile",
+          dataType: "json",
+          success: function(res) {
+            console.log(res);
+          },
+          error: function() {
+            console.error("/call_mobile error");
+          }
+        });
       };
       ws.onmessage = function(e) {
         console.log("onmessage: " + e.data);

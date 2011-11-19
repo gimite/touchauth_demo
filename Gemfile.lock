@@ -57,6 +57,7 @@ PLATFORMS
 
 DEPENDENCIES
   c2dm!
+  daemons
   em-websocket
   highline
   kyotocabinet-ruby
