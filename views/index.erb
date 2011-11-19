@@ -2,6 +2,11 @@
 <html><head>
   <meta charset="utf-8"> 
   <title>Touchauth Demo</title>
+  <style type="text/css">
+    .top-bar {
+      text-align: right;
+    }
+  </style>
   <script src="http://gimite.net/js/jquery-1.3.2.min.js"></script>
   <script>
     
@@ -9,16 +14,39 @@
       window.console = {log: function() { }, error: function() { }};
     }
     
+    // For debug
+    function clearBrowserKey() {
+      document.cookie = "touchauth_browser_key=;expires=Mon, 14 Nov 2011 00:00:00 GMT";
+    }
+    
   </script>
 </head><body>
+
+<div class="top-bar">
+  <% if @lang == "ja" %>
+    <a href="/?hl=en">English</a>
+  <% else %>
+    <a href="/?hl=ja">Japanese</a>
+  <% end %>
+</div>
 
 <h1>Touchauth Demo</h1>
 
 <% if @user %>
   
-  <p>Hello <b><%=h @user.id %></b>! You have logged in.</p>
-  
-  <p>Please try to log out and log in again. Second time log-in on the same PC/browser is easier: just one touch on your phone.</p>
+  <% if @lang == "ja" %>
+    
+    <p><b><%=h @user.id %></b> さんこんにちは。ログイン完了です。</p>
+    
+    <p>一度ログアウトしてからログインしなおしてみてください。同じPC/ブラウザでの2度目のログインはもっと簡単で、携帯電話にワンタッチするだけです。</p>
+    
+  <% else %>
+    
+    <p>Hello <b><%=h @user.id %></b>! You have logged in.</p>
+    
+    <p>Please try to log out and log in again. Second time log-in on the same PC/browser is easier: just one touch on your phone.</p>
+    
+  <% end %>
   
   <form action="/expire_session" method="POST">
     <input type="submit" value="Log out"/>
@@ -26,29 +54,57 @@
 
 <% else %>
   
-  <p>This is a demo site of Touchauth. By Touchauth, you can log in by your mobile phone instead of password.</p>
+  <% if @lang == "ja" %>
+    
+    <p>パスワードの代わりにAndroid携帯を使ってサイトにログインするデモです。</p>
+    
+    <p>Touchauthを試すには:</p>
+    
+    <ol>
+      <li>Androidの設定で [アプリケーション]->[提供元不明のアプリ] をクリック。</li>
+      <li>
+        <a href="<%=h @apk_url %>">Androidアプリ Touchauth</a>
+        をインストールして、アプリの中でサインアップ。<br/>
+        <img src="<%=h @apk_qr_url %>"/>
+      </li>
+      <li>下のログインボタンをクリック。</li>
+    </ol>
   
-  <p>Steps to try Touchauth:</p>
-  
-  <ol>
-    <li>Check [Application]->[Unknown sources] in settings in your Android phone.</li>
-    <li>
-      Install <a href="<%=h @apk_url %>">Touchauth Android app</a> and sign up in the app.<br/>
-      <img src="<%=h @apk_qr_url %>"/>
-    </li>
-    <li>Click Log-in button below.</li>
-  </ol>
+  <% else %>
+    
+    <p>This is a demo where you can log in with your Android phone instead of password.</p>
+    
+    <p>Steps to try Touchauth:</p>
+    
+    <ol>
+      <li>Check [Application]->[Unknown sources] in settings in your Android phone.</li>
+      <li>
+        Install <a href="<%=h @apk_url %>">Touchauth Android app</a> and sign up in the app.<br/>
+        <img src="<%=h @apk_qr_url %>"/>
+      </li>
+      <li>Click Log-in button below.</li>
+    </ol>
+    
+  <% end %>
   
   <% if @browser %>
     
     <form action="/login" method="POST">
       <input type="submit" value="Log in as <%=h @browser.user_id %>"/>
-      ← Log in by touch
+      <% if @lang == "ja" %>
+        ← タッチでログイン
+      <% else %>
+        ← Log in by touch
+      <% end %>
     </form>
     <form action="/login" method="POST">
       <input type="hidden" name="type" value="qr"/>
       <input type="submit" value="Log in as someone else"/>
-      ← Log in by QR code
+      <% if @lang == "ja" %>
+        ← QRコードでログイン
+      <% else %>
+        ← Log in by QR code
+      <% end %>
     </form>
     
   <% else %>

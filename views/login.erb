@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html><head>
   <meta charset="utf-8"> 
-  <title>Test</title>
+  <title>Touchauth Demo</title>
   <style type="text/css">
-    .touch-message {
+    .message {
       font-weight: bold;
     }
   </style>
@@ -67,7 +67,8 @@
           document.cookie = "touchauth_session=" + encodeURIComponent(res.session);
           location.href = "http://sakura.gimite.net:19001/";
         } else if (res.status == "connected") {
-          $("#touch-message").text("Touch [Log in] button on your phone.");
+          $("#connecting-message").hide();
+          $("#touch-message").show();
         }
       };
       ws.onclose = function() {
@@ -78,30 +79,63 @@
       };
     });
     
-    function clearBrowserKey() {
-      document.cookie = "touchauth_browser_key=;expires=Mon, 14 Nov 2011 00:00:00 GMT";
-    }
-    
   </script>
 </head><body>
 
 <div id="touch-container" style="display: none;">
-  <div id="touch-message" class="touch-message">Connecting to your phone...</div>
-  <div>
-    <p>Hint: Connecting to your phone usually takes less than a few seconds. But it sometimes takes forever. Some hints to make it faster:</p>
-    <ul>
-      <li>Connect your phone to Wi-Fi when available.</li>
-      <li>In Android settings, go to [Wireless and networks]->[Wi-Fi settings], click menu button, click [Advanced], and set [Wi-Fi sleep policy] to [Never]. This sounds like battery-consuming option, but I heard a rumor that it actually saves battery.</li>
-      <li>When it doesn't respond in a few seconds, wake up your phone and wait for a while.</li>
-    </ul>
-  </div>
+  
+  <% if @lang == "ja" %>
+    
+    <div id="connecting-message" class="message">携帯電話に接続中...</div>
+    <div id="touch-message" class="message" style="display: none;">
+      携帯電話の[Log in]ボタンをクリックしてください。</div>
+    <div>
+      <p>ヒント: 携帯電話への接続はたいてい、数秒以内です。ただ、時々やたらとかかる場合があります。速くするヒント:</p>
+      <ul>
+        <li>可能なら携帯電話をWi-Fiに接続してください。</li>
+        <li>Androidの設定で [無線とネットワーク]->[Wi-Fi設定]を選び、メニューボタンをクリックし、 [詳細設定] をクリックし、 [Wi-Fiのスリープ設定] を [スリープしない] にしてください。電池を食いそうなオプションですが、実は逆に食わないという噂を聞いたことがあります。</li>
+        <li>数秒で反応がない場合は、携帯電話の画面をオンにしてしばらく待ってみてください。</li>
+      </ul>
+    </div>
+    
+  <% else %>
+    
+    <div id="connecting-message" class="message">Connecting to your phone...</div>
+    <div id="touch-message" class="message" style="display: none;">
+      Touch [Log in] button on your phone.</div>
+    <div>
+      <p>Hint: Connecting to your phone usually takes less than a few seconds. But it sometimes takes forever. Some hints to make it faster:</p>
+      <ul>
+        <li>Connect your phone to Wi-Fi when available.</li>
+        <li>In Android settings, go to [Wireless and networks]->[Wi-Fi settings], click menu button, click [Advanced], and set [Wi-Fi sleep policy] to [Never]. This sounds like battery-consuming option, but I heard a rumor that it actually saves battery.</li>
+        <li>When it doesn't respond in a few seconds, wake up your phone and wait for a while.</li>
+      </ul>
+    </div>
+    
+  <% end %>
+  
 </div>
 
 <div id="qr-container" style="display: none;">
-  <p>
-    Scan QR code below with your Android phone, using <a href="https://market.android.com/details?id=com.google.zxing.client.android" target="_blank">Barcode Scanner</a>. Make sure you have installed <a href="/" target="_blank">Touchauth</a> in your phone.<br/>
-    <img id="qr"/>
-  </p>
+  
+  <% if @lang == "ja" %>
+    <div class="message">Android携帯で下のQRコードを読み取ってください:</div>
+  <% else %>
+    <div class="message">Scan QR code below with your Android phone:</div>
+  <% end %>
+  
+  <img id="qr"/>
+  
+  <% if @lang == "ja" %>
+    <div>
+      <a href="https://market.android.com/details?id=com.google.zxing.client.android" target="_blank">QRコードスキャナー</a> を使って読み取ってください。携帯電話には <a href="/" target="_blank">Touchauth</a> をインストールしておいてください。
+    </div>
+  <% else %>
+    <div>
+      Use <a href="https://market.android.com/details?id=com.google.zxing.client.android" target="_blank">Barcode Scanner</a> to scan QR code. Make sure you have installed <a href="/" target="_blank">Touchauth</a> in your phone.
+    </div>
+  <% end %>
+  
 </div>
 
 </body></html>

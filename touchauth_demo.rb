@@ -15,6 +15,10 @@ require "erb"
 require "ripl"
 require "daemons"
 require "fileutils"
+require "http_accept_language"
+
+
+Sinatra::Request.send(:include, HttpAcceptLanguage)
 
 
 class TouchauthWebServer < Sinatra::Base
@@ -39,9 +43,22 @@ class TouchauthWebServer < Sinatra::Base
       #register(Sinatra::Reloader)
     end
 
+    before() do
+      if params[:hl]
+        @lang = params[:hl]
+        response.set_cookie("touchauth_lang",
+            :value => @lang, :expires => Time.now + 5 * 365 * 24 * 3600)
+      elsif request.cookies["touchauth_lang"]
+        @lang = request.cookies["touchauth_lang"]
+      else
+        @lang = request.compatible_language_from(["en", "ja"]) || "en"
+      end
+    end
+    
     get("/") do
       browser_key = request.cookies["touchauth_browser_key"]
       @browser = browser_key && Store.get(Browser.new(browser_key))
+      p [browser_key, @browser]
       session = request.cookies["touchauth_session"]
       @user = nil
       if session

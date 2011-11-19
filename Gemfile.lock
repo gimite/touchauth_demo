@@ -16,6 +16,7 @@ GEM
       eventmachine (>= 0.12.9)
     eventmachine (0.12.10)
     highline (1.6.5)
+    http_accept_language (1.0.1)
     httparty (0.8.1)
       multi_json
       multi_xml
@@ -60,6 +61,7 @@ DEPENDENCIES
   daemons
   em-websocket
   highline
+  http_accept_language
   kyotocabinet-ruby
   ripl
   ripl-irb
