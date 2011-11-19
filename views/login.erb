@@ -31,7 +31,8 @@
       }
       
       var browserKey = params.browserKey;
-      if (browserKey) {
+      var useTouch = browserKey != null;
+      if (useTouch) {
         $("#touch-container").show();
       } else {
         browserKey = Math.random().toString();
@@ -48,17 +49,19 @@
       ws = new WebSocket("ws://sakura.gimite.net:19002/auth/" + browserKey);
       ws.onopen = function() {
         console.log("onopen");
-        $.ajax({
-          type: "POST",
-          url: "/call_mobile",
-          dataType: "json",
-          success: function(res) {
-            console.log(res);
-          },
-          error: function() {
-            console.error("/call_mobile error");
-          }
-        });
+        if (useTouch) {
+          $.ajax({
+            type: "POST",
+            url: "/call_mobile",
+            dataType: "json",
+            success: function(res) {
+              console.log(res);
+            },
+            error: function() {
+              console.error("/call_mobile error");
+            }
+          });
+        }
       };
       ws.onmessage = function(e) {
         console.log("onmessage: " + e.data);

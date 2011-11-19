@@ -55,8 +55,15 @@
 <% else %>
   
   <% if @lang == "ja" %>
-    
     <p>パスワードの代わりにAndroid携帯を使ってサイトにログインするデモです。</p>
+  <% else %>
+    <p>This is a demo where you can log in with your Android phone instead of password.</p>
+  <% end %>
+  
+  <iframe width="420" height="315"
+      src="http://www.youtube.com/embed/of_V0F7nGug?rel=0" frameborder="0" allowfullscreen></iframe>
+  
+  <% if @lang == "ja" %>
     
     <p>Touchauthを試すには:</p>
     
@@ -71,8 +78,6 @@
     </ol>
   
   <% else %>
-    
-    <p>This is a demo where you can log in with your Android phone instead of password.</p>
     
     <p>Steps to try Touchauth:</p>
     
