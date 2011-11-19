@@ -2,6 +2,11 @@
 <html><head>
   <meta charset="utf-8"> 
   <title>Test</title>
+  <style type="text/css">
+    .touch-message {
+      font-weight: bold;
+    }
+  </style>
   <script src="http://gimite.net/js/jquery-1.3.2.min.js"></script>
   <script type="text/javascript" src="/js/swfobject.js"></script>
   <script type="text/javascript" src="/js/web_socket.js"></script>
@@ -81,11 +86,23 @@
 </head><body>
 
 <div id="touch-container" style="display: none;">
-  <div id="touch-message">Connecting to your phone...</div>
+  <div id="touch-message" class="touch-message">Connecting to your phone...</div>
+  <div>
+    <p>Hint: Connecting to your phone usually takes less than a few seconds. But it sometimes takes forever. Some hints to make it faster:</p>
+    <ul>
+      <li>Connect your phone to Wi-Fi when available.</li>
+      <li>In Android settings, go to [Wireless and networks]->[Wi-Fi settings], click menu button, click [Advanced], and set [Wi-Fi sleep policy] to [Never]. This sounds like battery-consuming option, but I heard a rumor that it actually saves battery.</li>
+      <li>When it doesn't respond in a few seconds, wake up your phone and wait for a while.</li>
+    </ul>
+  </div>
 </div>
 
 <div id="qr-container" style="display: none;">
-  <img id="qr"/>
+  <p>
+    Launch <a href="/">Touchauth app</a> on your Android phone, click [Log in with QR code] and scan
+    QR code below:<br/>
+    <img id="qr"/>
+  </p>
 </div>
 
 </body></html>

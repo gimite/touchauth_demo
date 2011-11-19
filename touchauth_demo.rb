@@ -50,6 +50,9 @@ class TouchauthWebServer < Sinatra::Base
           @user = Store.get(User.new(user_id))
         end
       end
+      @apk_url = "http://gimite.net/archive/Touchauth-0.0.1.apk"
+      @apk_qr_url = "http://chart.apis.google.com/chart?chs=150x150&cht=qr&chl=" +
+          CGI.escape(@apk_url)
       return erb(:index)
     end
 
