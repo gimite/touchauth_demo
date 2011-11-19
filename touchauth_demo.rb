@@ -29,19 +29,25 @@ class TouchauthWebServer < Sinatra::Base
     include(ERB::Util)
     
     SESSION_SECRET_PATH = "config/session_secret"
+    @@session_secret = nil
     
+    set(:port, 19001)
+    set(:logging, true)
+
     def self.web_socket_server=(serv)
       @@web_socket_server = serv
     end
     
-    set(:port, 19001)
-    set(:logging, true)
-    
-    if !File.exist?(SESSION_SECRET_PATH)
-      open(SESSION_SECRET_PATH, "w"){ |f| f.write(SecureRandom.base64()) }
+    def self.session_secret
+      if !@@session_secret
+        if !File.exist?(SESSION_SECRET_PATH)
+          open(SESSION_SECRET_PATH, "w"){ |f| f.write(SecureRandom.base64()) }
+        end
+        @@session_secret = File.read(SESSION_SECRET_PATH)
+      end
+      return @@session_secret
     end
-    SESSION_SECRET = File.read(SESSION_SECRET_PATH)
-
+    
     configure(:development) do
       #register(Sinatra::Reloader)
     end
@@ -66,7 +72,8 @@ class TouchauthWebServer < Sinatra::Base
       @user = nil
       if session
         (user_id, timestamp, digest) = session.split(/:/)
-        if digest == Digest::SHA1.hexdigest([user_id, timestamp, SESSION_SECRET].join(":"))
+        if digest == Digest::SHA1.hexdigest(
+            [user_id, timestamp, TouchauthWebServer.session_secret].join(":"))
           @user = Store.get(User.new(user_id))
         end
       end
@@ -116,7 +123,8 @@ class TouchauthWebServer < Sinatra::Base
         # Needed for QR code authentication.
         Store.put(Browser.new(params[:browser_key], params[:user]))
         timestamp = Time.now.to_i()
-        digest = Digest::SHA1.hexdigest([params[:user], timestamp, SESSION_SECRET].join(":"))
+        digest = Digest::SHA1.hexdigest(
+            [params[:user], timestamp, TouchauthWebServer.session_secret].join(":"))
         session = [params[:user], timestamp, digest].join(":")
         @@web_socket_server.send(
             "/auth/%s" % params[:browser_key],
@@ -296,8 +304,6 @@ class Store
       return @db
     end
     
-    open()
-    
 end
 
 class User
@@ -351,17 +357,21 @@ case ARGV.shift()
     }
     Daemons.run_proc("touchauth_demo", opts) do
       FileUtils.cd(root_dir)
+      Store.open()
       wsserv = TouchauthWebSocketServer.new()
       wsserv.schedule()
       TouchauthWebServer.web_socket_server = wsserv
       TouchauthWebServer.run!()
     end
   when "test"
+    Store.open()
     Store.put(User.new("gimite", "hoge"))
     p Store.get(User.new("gimite"))
   when "dump_store"
+    Store.open()
     Store.dump()
   when "console"
+    Store.open()
     Ripl.start({:binding => binding})
   else
     raise("unknown action")
