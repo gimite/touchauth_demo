@@ -76,7 +76,7 @@ class TouchauthWebServer < Sinatra::Base
     get("/") do
       browser_key = request.cookies["touchauth_browser_key"]
       @browser = browser_key && Store.get(Browser.new(browser_key))
-      p [browser_key, @browser]
+      #p [browser_key, @browser]
       session = request.cookies["touchauth_session"]
       @user = nil
       if session
