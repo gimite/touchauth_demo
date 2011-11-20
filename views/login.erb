@@ -46,7 +46,7 @@
         $("#qr-container").show();
       }
       
-      ws = new WebSocket("ws://sakura.gimite.net:19002/auth/" + browserKey);
+      ws = new WebSocket(params.webSocketServerUrl + "/auth/" + browserKey);
       ws.onopen = function() {
         console.log("onopen");
         if (useTouch) {
@@ -68,7 +68,7 @@
         var res = JSON.parse(e.data);
         if (res.status == "success") {
           document.cookie = "touchauth_session=" + encodeURIComponent(res.session);
-          location.href = "http://sakura.gimite.net:19001/";
+          location.href = params.webServerUrl + "/";
         } else if (res.status == "connected") {
           $("#connecting-message").hide();
           $("#touch-message").show();

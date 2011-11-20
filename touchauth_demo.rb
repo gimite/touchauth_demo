@@ -19,6 +19,7 @@ require "ripl"
 require "daemons"
 require "fileutils"
 require "http_accept_language"
+require "./config/touchauth_config"
 
 
 Sinatra::Request.send(:include, HttpAcceptLanguage)
@@ -31,7 +32,7 @@ class TouchauthWebServer < Sinatra::Base
     SESSION_SECRET_PATH = "config/session_secret"
     @@session_secret = nil
     
-    set(:port, 19001)
+    set(:port, TouchauthConfig::WEB_SERVER_PORT)
     set(:logging, true)
 
     def self.web_socket_server=(serv)
@@ -46,6 +47,14 @@ class TouchauthWebServer < Sinatra::Base
         @@session_secret = File.read(SESSION_SECRET_PATH)
       end
       return @@session_secret
+    end
+    
+    def self.authenticate_c2dm()
+      password = HighLine.new().ask("Password: "){ |q| q.echo = false }
+      c2dm = C2DM.authenticate(TouchauthConfig::C2DM_ACCOUNT, password)
+      open("config/google_auth_token", "w", 0600) do |f|
+        f.write(c2dm.auth_token)
+      end
     end
     
     configure(:development) do
@@ -90,7 +99,11 @@ class TouchauthWebServer < Sinatra::Base
       else
         browser = browser_key && Store.get(Browser.new(browser_key))
       end
-      @params_json = JSON.dump({"browserKey" => browser && browser.browser_key})
+      @params_json = JSON.dump({
+          "browserKey" => browser && browser.browser_key,
+          "webServerUrl" => TouchauthConfig::WEB_SERVER_URL,
+          "webSocketServerUrl" => TouchauthConfig::WEB_SOCKET_SERVER_URL,
+      })
       return erb(:login)
     end
     
@@ -173,15 +186,6 @@ class TouchauthWebServer < Sinatra::Base
       return JSON.dump(result)
     end
     
-    get("/test1") do
-      return erb(:auth)
-    end
-    
-    get("/test2") do
-      @@web_socket_server.send()
-      return "ok"
-    end
-    
     def valid_user?(user)
       return user =~ /\A[a-zA-Z0-9]+\z/
     end
@@ -196,8 +200,9 @@ class TouchauthWebSocketServer
     
     def schedule()
       EventMachine.schedule() do
-        port = 19002
-        EventMachine::WebSocket.start(:host => "0.0.0.0", :port => port) do |ws|
+        port = TouchauthConfig::WEB_SOCKET_SERVER_PORT
+        EventMachine::WebSocket.start(
+            :host => "0.0.0.0", :port => port) do |ws|
           ws.onopen(){ on_web_socket_open(ws) }
           ws.onclose(){ on_web_socket_close(ws) }
           ws.onmessage(){ |m| on_web_socket_message(ws, m) }
@@ -341,11 +346,7 @@ end
 
 case ARGV.shift()
   when "auth"
-    password = HighLine.new().ask("Password: "){ |q| q.echo = false }
-    c2dm = C2DM.authenticate("gimite@gmail.com", password)
-    open("config/google_auth_token", "w", 0600) do |f|
-      f.write(c2dm.auth_token)
-    end
+    TouchauthWebServer.authenticate_c2dm()
   when "server"
     FileUtils.mkdir_p("log")
     root_dir = File.dirname(File.expand_path(__FILE__))
@@ -363,10 +364,6 @@ case ARGV.shift()
       TouchauthWebServer.web_socket_server = wsserv
       TouchauthWebServer.run!()
     end
-  when "test"
-    Store.open()
-    Store.put(User.new("gimite", "hoge"))
-    p Store.get(User.new("gimite"))
   when "dump_store"
     Store.open()
     Store.dump()

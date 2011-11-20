@@ -1,0 +1,9 @@
+class TouchauthConfig
+    
+    WEB_SERVER_URL = "http://touchauth.gimite.net"
+    WEB_SERVER_PORT = 12012
+    WEB_SOCKET_SERVER_URL = "ws://touchauth.gimite.net:13001"
+    WEB_SOCKET_SERVER_PORT = 13001
+    C2DM_ACCOUNT = "gimite@gmail.com"
+    
+end
