@@ -103,7 +103,7 @@ class TouchauthWebServer < Sinatra::Base
           "browserKey" => browser && browser.browser_key,
           "webServerUrl" => TouchauthConfig::WEB_SERVER_URL,
           "webSocketServerUrl" => TouchauthConfig::WEB_SOCKET_SERVER_URL,
-      })
+      }).gsub(/\//){ "\\/" }  # Escapes / for </script>.
       return erb(:login)
     end
     
